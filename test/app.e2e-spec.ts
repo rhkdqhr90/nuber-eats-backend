@@ -1,12 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
+import { DataSource } from 'typeorm';
+import { request } from 'http';
 
-describe('AppController (e2e)', () => {
+const GRAPHQL_ENDPOINT = '/graphql';
+
+const dataSource = new DataSource({
+  type: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  username: 'gwang-kyo',
+  password: '123',
+  database: 'nuber-eats-test',
+});
+
+describe('UserModule (e2e)', () => {
   let app: INestApplication;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -15,10 +27,16 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  afterAll(async () => {
+    const connection = await dataSource.initialize();
+    await connection.dropDatabase();
+    await connection.destroy();
+    await app.close();
   });
+
+  it.todo('userProfile');
+  it.todo('login');
+  it.todo('me');
+  it.todo('verifyEmail');
+  it.todo('editProfile');
 });
