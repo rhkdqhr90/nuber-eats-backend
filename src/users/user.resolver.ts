@@ -1,8 +1,14 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, Mutation, Query } from '@nestjs/graphql';
+import {
+  Args,
+  FIELD_RESOLVER_MIDDLEWARE_METADATA,
+  Mutation,
+  Query,
+} from '@nestjs/graphql';
 import { Resolver } from '@nestjs/graphql';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { AuthUser } from 'src/auth/auto-user.decorator';
+import { Role } from 'src/auth/role.decorate';
 import {
   CreateAccountInput,
   CreateAccountOutput,
@@ -18,11 +24,6 @@ import { UsersService } from './user.service';
 export class UsersResolver {
   constructor(private readonly usersService: UsersService) {}
 
-  @Query(() => Boolean)
-  h2() {
-    return true;
-  }
-
   @Mutation(() => CreateAccountOutput)
   async createAccount(
     @Args('input') createAccountInput: CreateAccountInput,
@@ -34,14 +35,15 @@ export class UsersResolver {
   async login(@Args('input') loginInput: LoginInput): Promise<LonginOutPut> {
     return await this.usersService.login(loginInput);
   }
-
-  @Query(() => User)
   @UseGuards(AuthGuard)
+  @Query(() => User)
+  @Role(['Any'])
   me(@AuthUser() authUser: User) {
     return authUser;
   }
 
   @UseGuards(AuthGuard)
+  @Role(['Any'])
   @Query(() => UserProfileOutput)
   async userProfile(
     @Args() userProfileInput: UserProfileInput,
@@ -51,6 +53,7 @@ export class UsersResolver {
 
   @UseGuards(AuthGuard)
   @Mutation(() => EditProfileOutput)
+  @Role(['Any'])
   async editProfile(
     @AuthUser() authUser: User,
     @Args('input') editProfileInput: EditProfileInput,
