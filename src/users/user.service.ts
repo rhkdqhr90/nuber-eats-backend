@@ -68,7 +68,7 @@ export class UsersService {
         };
       }
       const passwordCorrect = await user.checkPassword(password);
-      if (passwordCorrect) {
+      if (!passwordCorrect) {
         return {
           ok: false,
           error: '잘못된 비밀 번호 입니다.',
