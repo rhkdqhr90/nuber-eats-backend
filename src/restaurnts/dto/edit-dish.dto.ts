@@ -6,7 +6,7 @@ import {
   PickType,
 } from '@nestjs/graphql';
 import { CoreOutput } from 'src/common/dtos/output.dto';
-import { Dish } from '../entities/dish.dto';
+import { Dish } from '../entities/dish.enity';
 
 @InputType()
 export class EditDishInput extends PickType(PartialType(Dish), [

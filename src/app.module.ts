@@ -5,27 +5,43 @@ import {
   NestModule,
   RequestMethod,
 } from '@nestjs/common';
-import { GraphQLModule } from '@nestjs/graphql';
+import { Context, GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { UsersModule } from './users/users.module';
 import { User } from './users/entities/user.entity';
 import { JwtModule } from './jwt/jwt.module';
-import { JwtMiddleware } from './jwt/jwt.middleware';
 import { Verification } from './users/entities/verification.entity';
 import { MailModule } from './mail/mail.module';
 import { Restaurant } from './restaurnts/entities/restaurant.entity';
 import { Category } from './restaurnts/entities/category.entity';
 import { RestaurntsModule } from './restaurnts/restaurnts.module';
 import { AuthModule } from './auth/auth.module';
-import { Dish } from './restaurnts/entities/dish.dto';
+import { Dish } from './restaurnts/entities/dish.enity';
+import { OrdersModule } from './orders/orders.module';
+import { Order } from './orders/entities/order.entity';
+import { OrderItem } from './orders/entities/order-item.entity';
 
 @Module({
   imports: [
     GraphQLModule.forRoot<ApolloDriverConfig>({
+      installSubscriptionHandlers: true,
+      subscriptions: {
+        'subscriptions-transport-ws': {
+          onConnect: (connectionParams: any) => ({
+            token: connectionParams['x-jwt'],
+          }),
+        },
+      },
       autoSchemaFile: true,
-      context: ({ req }) => ({ user: req['user'] }),
+      context: ({ req, connection }) => {
+        const TOKEN_KEY = 'x-jwt';
+        return {
+          token: req ? req.headers[TOKEN_KEY] : connection.context[TOKEN_KEY],
+        };
+      },
+
       driver: ApolloDriver,
     }),
     ConfigModule.forRoot({
@@ -52,7 +68,15 @@ import { Dish } from './restaurnts/entities/dish.dto';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: [User, Verification, Restaurant, Category, Dish],
+      entities: [
+        User,
+        Verification,
+        Restaurant,
+        Category,
+        Dish,
+        Order,
+        OrderItem,
+      ],
       synchronize: process.env.NODE_ENV !== 'prod',
       logging:
         process.env.NODE_ENV !== 'prod' && process.env.NODE_ENV !== 'test',
@@ -68,15 +92,9 @@ import { Dish } from './restaurnts/entities/dish.dto';
     AuthModule,
     UsersModule,
     RestaurntsModule,
+    OrdersModule,
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(JwtMiddleware).forRoutes({
-      path: '/graphql',
-      method: RequestMethod.POST,
-    });
-  }
-}
+export class AppModule {}

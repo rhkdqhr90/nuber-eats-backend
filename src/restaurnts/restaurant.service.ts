@@ -26,7 +26,7 @@ import {
   SearchRestaurantOutput,
 } from './dto/search-restaurant.dto';
 import { CreateDishInput, CreateDishOutput } from './dto/create-dish.dto';
-import { Dish } from './entities/dish.dto';
+import { Dish } from './entities/dish.enity';
 import { EditDishInput, EditDishOutput } from './dto/edit-dish.dto';
 import { DeleteDishInput, DeleteDishOutput } from './dto/delete-dish.dto';
 
