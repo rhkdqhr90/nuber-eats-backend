@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Restaurant } from './entities/restaurant.entity';
-import { Repository, Like, ILike } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   CreateRestaurantInput,
   CreateRestaurantOutput,
 } from './dto/cretae-restauran.dto';
 
-import { User, UserRole } from 'src/users/entities/user.entity';
+import { User } from 'src/users/entities/user.entity';
 import { Category } from './entities/category.entity';
 import {
   EditRestaurantInput,
@@ -25,6 +25,10 @@ import {
   SearchRestaurantInput,
   SearchRestaurantOutput,
 } from './dto/search-restaurant.dto';
+import { CreateDishInput, CreateDishOutput } from './dto/create-dish.dto';
+import { Dish } from './entities/dish.dto';
+import { EditDishInput, EditDishOutput } from './dto/edit-dish.dto';
+import { DeleteDishInput, DeleteDishOutput } from './dto/delete-dish.dto';
 
 @Injectable()
 export class RestaurantService {
@@ -33,6 +37,8 @@ export class RestaurantService {
     private readonly restaurants: Repository<Restaurant>,
     @InjectRepository(Category)
     private readonly categories: Repository<Category>,
+    @InjectRepository(Dish)
+    private readonly dishes: Repository<Dish>,
   ) {}
   async getOrCreateCategory(name: string): Promise<Category> {
     const categoryName = name.trim().toLowerCase();
@@ -236,6 +242,7 @@ export class RestaurantService {
     try {
       const restaurant = await this.restaurants.findOne({
         where: { id: restaurantId },
+        relations: ['menu'],
       });
       if (!restaurant) {
         return {
@@ -276,6 +283,109 @@ export class RestaurantService {
       return {
         ok: false,
         error: '레스토랑을 찾을 수 없습니다.',
+      };
+    }
+  }
+
+  async createDish(
+    owner: User,
+    createDishInput: CreateDishInput,
+  ): Promise<CreateDishOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne({
+        where: { id: createDishInput.restaurantId },
+      });
+      if (!restaurant) {
+        return {
+          ok: false,
+          error: '레스토랑을 찾을 수 없습니다.',
+        };
+      }
+      if (owner.id !== restaurant.ownerId) {
+        return {
+          ok: false,
+          error: '자신의 레스트랑만 변경 가능합니다.',
+        };
+      }
+      await this.dishes.save(
+        this.dishes.create({ ...createDishInput, restaurant }),
+      );
+
+      return {
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: '음식을 추가 할 수 없습니다',
+      };
+    }
+  }
+
+  async editDish(
+    owner: User,
+    eidtDishInput: EditDishInput,
+  ): Promise<EditDishOutput> {
+    try {
+      const dish = await this.dishes.findOne({
+        where: { id: eidtDishInput.disiId },
+        relations: ['restaurant'],
+      });
+      if (!dish) {
+        return {
+          ok: false,
+          error: '음식을 찾지 못했습니다.',
+        };
+      }
+      if (dish.restaurant.ownerId !== owner.id) {
+        return {
+          ok: false,
+          error: '자신의 레스트로랑 메뉴만 수정 할 수  있습니다',
+        };
+      }
+      await this.dishes.save([
+        {
+          id: eidtDishInput.disiId,
+          ...eidtDishInput,
+        },
+      ]);
+    } catch (error) {
+      return {
+        ok: false,
+        error,
+      };
+    }
+  }
+
+  async deleteDish(
+    owner: User,
+    { dishId }: DeleteDishInput,
+  ): Promise<DeleteDishOutput> {
+    try {
+      const dish = await this.dishes.findOne({
+        where: { id: dishId },
+        relations: ['restaurant'],
+      });
+      if (!dish) {
+        return {
+          ok: false,
+          error: '음식을 찾지 못했습니다.',
+        };
+      }
+      if (dish.restaurant.ownerId !== owner.id) {
+        return {
+          ok: false,
+          error: '자신의 레스트로랑 메뉴만 삭제 할 수  있습니다',
+        };
+      }
+      await this.dishes.delete(dishId);
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error,
       };
     }
   }
