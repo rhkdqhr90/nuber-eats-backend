@@ -20,8 +20,8 @@ The Backend of Nuber Eats Clone
 - Edit profile
 - Verify Email
 
-
 ## Restaurant CRUD
+
 - See Categories
 - See Restaurnts by Categories
 - See Restaurants (pagination)
@@ -34,3 +34,11 @@ The Backend of Nuber Eats Clone
 - Create Dish
 - Edit Dish
 - Delete Dish
+
+## Order CRUD
+
+- Order Subscription
+  - Pending orders (Owner)
+  - Order Status (Customer, Delivery, Owner)
+  - Pending Pickup Order (Delivery)
+- Payments (CRON)
