@@ -1,20 +1,30 @@
+import { Inject } from '@nestjs/common';
 import { Args, Mutation, Resolver, Query, Subscription } from '@nestjs/graphql';
 import { PubSub } from 'graphql-subscriptions';
 import { AuthUser } from 'src/auth/auto-user.decorator';
 import { Role } from 'src/auth/role.decorate';
+import {
+  NEW_COOKED_ORDER,
+  NEW_ORDER_UPDATE,
+  NEW_PENDING_ORDER,
+  PUB_SUB,
+} from 'src/common/common.constants';
 import { User } from 'src/users/entities/user.entity';
 import { CreateOrderInput, CreateOrderOutput } from './dto/create-order.dto';
 import { EditOrderInput, EditOrderOutput } from './dto/edit-order.dto';
 import { GetOrderInput, GetOrderOutput } from './dto/get-order.dto';
 import { GetOrdersInput, GetOrdersOutput } from './dto/get-orders.dto';
+import { OrderUpdateInput } from './dto/order-update.dto';
+import { TakeOrderInput, TakeOrderOutput } from './dto/take-order.dto';
 import { Order } from './entities/order.entity';
 import { OrderService } from './order.service';
 
-const pubsub = new PubSub();
-
 @Resolver(() => Order)
 export class OrderReslover {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(
+    private readonly orderService: OrderService,
+    @Inject(PUB_SUB) private readonly pubsub: PubSub,
+  ) {}
 
   @Mutation(() => CreateOrderOutput)
   @Role(['Client'])
@@ -53,18 +63,50 @@ export class OrderReslover {
     return await this.orderService.editOrder(user, editOrderInput);
   }
 
-  @Mutation(() => Boolean)
-  reay() {
-    pubsub.publish('hotpoptas', {
-      orderSubscription: 'ready to  doadsfasdfas',
-    });
-    return true;
+  @Subscription(() => Order, {
+    filter: ({ pendingOrders: ownerId }, _, { user }) => {
+      return ownerId === user.id;
+    },
+    resolve: ({ pendingOrders: { order } }) => order,
+  })
+  @Role(['Owner'])
+  pendingOrders() {
+    return this.pubsub.asyncIterator(NEW_PENDING_ORDER);
   }
 
-  @Subscription(() => String)
+  @Subscription(() => Order)
+  @Role(['Delivery'])
+  cookedOrders() {
+    return this.pubsub.asyncIterator(NEW_COOKED_ORDER);
+  }
+
+  @Subscription(() => Order, {
+    filter: (
+      { orderUpdates: order }: { orderUpdates: Order },
+      { input }: { input: OrderUpdateInput },
+      { user }: { user: User },
+    ) => {
+      if (
+        order.driverId !== user.id &&
+        order.customerId !== user.id &&
+        order.restaurant.ownerId !== user.id
+      ) {
+        return false;
+      }
+      return order.id === input.id;
+    },
+  })
   @Role(['Any'])
-  orderSubscription(@AuthUser() user: User) {
-    console.log(user);
-    return pubsub.asyncIterator('hotpoptas');
+  orderUpdates(@Args('input') orderUpdateInput: OrderUpdateInput) {
+    return this.pubsub.asyncIterator(NEW_ORDER_UPDATE);
+  }
+
+  @Mutation(() => TakeOrderOutput)
+  @Role(['Delivery'])
+  takeOrder(
+    @AuthUser() driver: User,
+    @Args('input') takeOrderInput: TakeOrderInput,
+  ): Promise<TakeOrderOutput> {
+    return this.orderService.takeOrder(driver, takeOrderInput);
   }
 }

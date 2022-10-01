@@ -18,11 +18,11 @@ import { LoginInput, LonginOutPut } from './dtos/login.dto';
 import { UserProfileInput, UserProfileOutput } from './dtos/user-profile.dto';
 import { VerifyEmailInput, VerifyEmailOutput } from './dtos/verify-emai.dto';
 import { User } from './entities/user.entity';
-import { UsersService } from './user.service';
+import { UserService } from './user.service';
 
 @Resolver(() => User)
 export class UsersResolver {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UserService) {}
 
   @Mutation(() => CreateAccountOutput)
   async createAccount(

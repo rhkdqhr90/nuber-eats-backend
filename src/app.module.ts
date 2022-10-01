@@ -1,11 +1,6 @@
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  RequestMethod,
-} from '@nestjs/common';
-import { Context, GraphQLModule } from '@nestjs/graphql';
+import { Module } from '@nestjs/common';
+import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
@@ -22,9 +17,14 @@ import { Dish } from './restaurnts/entities/dish.enity';
 import { OrdersModule } from './orders/orders.module';
 import { Order } from './orders/entities/order.entity';
 import { OrderItem } from './orders/entities/order-item.entity';
+import { CommonModule } from './common/common.module';
+import { PaymentsModule } from './payments/payments.module';
+import { Payment } from './payments/entities/payment.entity';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       installSubscriptionHandlers: true,
       subscriptions: {
@@ -76,6 +76,7 @@ import { OrderItem } from './orders/entities/order-item.entity';
         Dish,
         Order,
         OrderItem,
+        Payment,
       ],
       synchronize: process.env.NODE_ENV !== 'prod',
       logging:
@@ -89,11 +90,15 @@ import { OrderItem } from './orders/entities/order-item.entity';
       domain: process.env.MAILGUN_DOMAIN_NAME,
       fromEmail: process.env.MAILGUN_FROM_EMAIL,
     }),
+
     AuthModule,
     UsersModule,
     RestaurntsModule,
     OrdersModule,
+    CommonModule,
+    PaymentsModule,
   ],
+
   controllers: [],
   providers: [],
 })

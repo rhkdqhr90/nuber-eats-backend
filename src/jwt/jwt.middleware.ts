@@ -1,13 +1,13 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Response, Request } from 'express';
-import { UsersService } from 'src/users/user.service';
+import { UserService } from 'src/users/user.service';
 import { JwtService } from './jwt.service';
 
 @Injectable()
 export class JwtMiddleware implements NestMiddleware {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly userService: UsersService,
+    private readonly userService: UserService,
   ) {}
   async use(req: Request, res: Response, next: NextFunction) {
     if ('x-jwt' in req.headers) {

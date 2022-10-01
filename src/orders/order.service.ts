@@ -1,6 +1,12 @@
-import { Injectable } from '@nestjs/common';
-
+import { Inject, Injectable } from '@nestjs/common';
+import { PubSub } from 'graphql-subscriptions';
 import { InjectRepository } from '@nestjs/typeorm';
+import {
+  NEW_COOKED_ORDER,
+  NEW_ORDER_UPDATE,
+  NEW_PENDING_ORDER,
+  PUB_SUB,
+} from 'src/common/common.constants';
 import { Dish } from 'src/restaurnts/entities/dish.enity';
 import { Restaurant } from 'src/restaurnts/entities/restaurant.entity';
 import { User, UserRole } from 'src/users/entities/user.entity';
@@ -11,6 +17,7 @@ import { GetOrderInput, GetOrderOutput } from './dto/get-order.dto';
 import { GetOrdersInput, GetOrdersOutput } from './dto/get-orders.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { Order, OrderStatus } from './entities/order.entity';
+import { TakeOrderInput, TakeOrderOutput } from './dto/take-order.dto';
 
 @Injectable()
 export class OrderService {
@@ -22,6 +29,7 @@ export class OrderService {
     private readonly orderItem: Repository<OrderItem>,
     @InjectRepository(Dish)
     private readonly dishes: Repository<Dish>,
+    @Inject(PUB_SUB) private readonly pubsub: PubSub,
   ) {}
 
   async createOrder(
@@ -79,7 +87,7 @@ export class OrderService {
         );
         orderItems.push(orderItem);
       }
-      await this.orders.save(
+      const order = await this.orders.save(
         this.orders.create({
           customer,
           restaurant,
@@ -87,6 +95,9 @@ export class OrderService {
           items: orderItems,
         }),
       );
+      await this.pubsub.publish(NEW_PENDING_ORDER, {
+        pendingOrders: { order, ownerId: restaurant.ownerId },
+      });
       return {
         ok: true,
       };
@@ -186,7 +197,6 @@ export class OrderService {
     try {
       const order = await this.orders.findOne({
         where: { id: orderId },
-        relations: ['restaurant'],
       });
       if (!order) {
         return {
@@ -231,6 +241,16 @@ export class OrderService {
           status,
         },
       ]);
+
+      const newOrder = { ...order, status };
+      if (user.role === UserRole.Owner) {
+        if (status === OrderStatus.Cooked) {
+          await this.pubsub.publish(NEW_COOKED_ORDER, {
+            cookedOrders: newOrder,
+          });
+        }
+      }
+      await this.pubsub.publish(NEW_ORDER_UPDATE, { orderUpdates: newOrder });
       return {
         ok: true,
       };
@@ -238,6 +258,44 @@ export class OrderService {
       return {
         ok: false,
         error: '접근에 실패 했습니다.',
+      };
+    }
+  }
+
+  async takeOrder(
+    driver: User,
+    takeOrderInput: TakeOrderInput,
+  ): Promise<TakeOrderOutput> {
+    try {
+      const order = await this.orders.findOne({
+        where: { id: takeOrderInput.id },
+      });
+      if (!order) {
+        return {
+          ok: false,
+          error: '주문을 찾을 수 없습니다.',
+        };
+      }
+      if (order.driver) {
+        return {
+          ok: false,
+          error: '이미 배달기사에게 배정된  주문입니다.',
+        };
+      }
+      await this.orders.save({
+        id: takeOrderInput.id,
+        driver,
+      });
+      await this.pubsub.publish(NEW_ORDER_UPDATE, {
+        orderUpdates: { ...order, driver },
+      });
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error,
       };
     }
   }
