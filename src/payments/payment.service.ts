@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Restaurant } from 'src/restaurnts/entities/restaurant.entity';
 
 import { User } from 'src/users/entities/user.entity';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import {
   CreatePaymentInput,
   CreatePaymentOutput,
@@ -41,6 +41,11 @@ export class PaymentService {
           error: '자신의 소유의 레스토랑만 선택 가능합니다.',
         };
       }
+      restaurant.isPromoted = true;
+      const date = new Date();
+      date.setDate(date.getDate() + 7);
+      restaurant.promotedUntil = date;
+      this.restaurant.save(restaurant);
       await this.payment.save(
         this.payment.create({ transactionId, user: owner, restaurant }),
       );
@@ -72,15 +77,16 @@ export class PaymentService {
       };
     }
   }
-  @Cron('30 * * * * *', {
-    name: 'myjob',
-  })
-  async checkForPayment() {
-    try {
-      console.log('asdjkldsafjkleawfkdansdfasf');
-      const job = this.schedulerRegistry.getCronJob('myjob');
-      job.stop();
-      console.log(job);
-    } catch (error) {}
+
+  async checkPromoteRestaurants() {
+    const restaurant = await this.restaurant.find({
+      where: { isPromoted: true, promotedUntil: LessThan(new Date()) },
+    });
+    console.log(restaurant);
+    restaurant.forEach(async (restaurant) => {
+      restaurant.isPromoted = false;
+      restaurant.promotedUntil = null;
+      await this.restaurant.save(restaurant);
+    });
   }
 }
