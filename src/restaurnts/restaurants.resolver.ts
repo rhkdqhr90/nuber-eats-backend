@@ -34,7 +34,7 @@ import {
   SearchRestaurantOutput,
 } from './dto/search-restaurant.dto';
 import { Category } from './entities/category.entity';
-import { Dish } from './entities/dish.dto';
+import { Dish } from './entities/dish.enity';
 
 import { Restaurant } from './entities/restaurant.entity';
 import { RestaurantService } from './restaurant.service';
